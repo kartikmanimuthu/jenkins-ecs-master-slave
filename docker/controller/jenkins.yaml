@@ -1,0 +1,125 @@
+jenkins:
+  systemMessage: "Jenkins Controller - Configured as Code"
+  numExecutors: 0
+  mode: NORMAL
+  
+  slaveAgentPort: 50000
+  agentProtocols:
+    - "JNLP4-connect"
+    - "Ping"
+  
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_USER:-admin}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+          properties:
+            - timezone:
+                timeZoneName: "Asia/Kolkata"
+
+  authorizationStrategy:
+    globalMatrix:
+      permissions:
+        - "Overall/Administer:admin"
+        - "Overall/Read:authenticated"
+
+  remotingSecurity:
+    enabled: true
+
+  clouds:
+    - ecs:
+        name: "ecs-cloud"
+        credentialsId: ""
+        cluster: "${ECS_CLUSTER_NAME}"
+        regionName: "${AWS_REGION}"
+        jenkinsUrl: "${JENKINS_URL}"
+        tunnel: "${JENKINS_TUNNEL}"
+        templates:
+          - assignPublicIp: false
+            cpu: "${AGENT_CPU:-1024}"
+            memory: "${AGENT_MEMORY:-2048}"
+            memoryReservation: "${AGENT_MEMORY:-2048}"
+            image: "${JENKINS_AGENT_IMAGE}"
+            label: "ecs-agent"
+            launchType: "FARGATE"
+            executionRole: "${AGENT_EXECUTION_ROLE_ARN}"
+            taskrole: "${AGENT_TASK_ROLE_ARN}"
+            subnets: "${PRIVATE_SUBNETS}"
+            securityGroups: "${AGENT_SECURITY_GROUPS}"
+            logDriver: "awslogs"
+            logDriverOptions:
+              - name: "awslogs-group"
+                value: "${AGENT_LOG_GROUP}"
+              - name: "awslogs-region"
+                value: "${AWS_REGION}"
+              - name: "awslogs-stream-prefix"
+                value: "jenkins-agent"
+            templateName: "fargate-agent"
+            platformVersion: "LATEST"
+            
+          - assignPublicIp: false
+            cpu: 2048
+            memory: 4096
+            memoryReservation: 4096
+            image: "${JENKINS_AGENT_IMAGE}"
+            label: "ecs-agent-large"
+            launchType: "FARGATE"
+            executionRole: "${AGENT_EXECUTION_ROLE_ARN}"
+            taskrole: "${AGENT_TASK_ROLE_ARN}"
+            subnets: "${PRIVATE_SUBNETS}"
+            securityGroups: "${AGENT_SECURITY_GROUPS}"
+            logDriver: "awslogs"
+            logDriverOptions:
+              - name: "awslogs-group"
+                value: "${AGENT_LOG_GROUP}"
+              - name: "awslogs-region"
+                value: "${AWS_REGION}"
+              - name: "awslogs-stream-prefix"
+                value: "jenkins-agent-large"
+            templateName: "fargate-agent-large"
+            platformVersion: "LATEST"
+
+tool:
+  git:
+    installations:
+      - home: "git"
+        name: "Default"
+
+unclassified:
+  location:
+    adminAddress: "admin@example.com"
+    url: "${JENKINS_URL}"
+    
+  globalLibraries:
+    libraries:
+      - name: "shared-library"
+        defaultVersion: "main"
+        retriever:
+          modernSCM:
+            scm:
+              git:
+                remote: "https://github.com/your-org/jenkins-shared-library"
+
+security:
+  globalJobDslSecurityConfiguration:
+    useScriptSecurity: true
+  scriptApproval:
+    approvedSignatures:
+      - "method groovy.json.JsonSlurperClassic parseText java.lang.String"
+      - "new groovy.json.JsonSlurperClassic"
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - aws:
+              id: "aws-credentials"
+              accessKey: "${AWS_ACCESS_KEY_ID}"
+              secretKey: "${AWS_SECRET_ACCESS_KEY}"
+              description: "AWS Credentials"
+          - string:
+              id: "github-token"
+              secret: "${GITHUB_TOKEN}"
+              description: "GitHub Token"
+              scope: GLOBAL
