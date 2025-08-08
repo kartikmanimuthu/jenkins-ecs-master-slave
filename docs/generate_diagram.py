@@ -4,7 +4,7 @@ from diagrams.aws.network import ALB
 from diagrams.aws.storage import EFS
 from diagrams.aws.management import Cloudwatch
 
-with Diagram("Jenkins on AWS ECS", show=False, direction="LR"):
+with Diagram("Jenkins on AWS ECS", show=False, direction="TB"):
     # Using a generic node to represent the user browser
     from diagrams import Node
     user_browser = Node("User Browser", shape="none", height="0.5", width="1.0")
@@ -14,6 +14,12 @@ with Diagram("Jenkins on AWS ECS", show=False, direction="LR"):
         user_browser >> alb
 
     with Cluster("AWS Cloud"):
+        cloudwatch = Cloudwatch("CloudWatch Logs")
+
+        with Cluster("Container Registries"):
+            ecr_master = ECR("ECR - Master Image")
+            ecr_agent = ECR("ECR - Agent Image")
+
         with Cluster("VPC"):
             with Cluster("Public Subnets"):
                 alb >> ECS("Jenkins Master ECS Service")
@@ -25,6 +31,9 @@ with Diagram("Jenkins on AWS ECS", show=False, direction="LR"):
                 jenkins_agent_task_2 = Fargate("Jenkins Agent Task 2")
                 efs = EFS("Persistent Storage")
 
+                ecr_master >> jenkins_master_task
+                ecr_agent >> [jenkins_agent_task_1, jenkins_agent_task_2]
+
                 alb >> jenkins_master_task
                 jenkins_master_task >> jenkins_agent_service
                 jenkins_agent_service >> [jenkins_agent_task_1, jenkins_agent_task_2]
@@ -33,11 +42,4 @@ with Diagram("Jenkins on AWS ECS", show=False, direction="LR"):
                 jenkins_agent_task_1 >> efs
                 jenkins_agent_task_2 >> efs
 
-        with Cluster("AWS Services"):
-            ecr_master = ECR("ECR - Master Image")
-            ecr_agent = ECR("ECR - Agent Image")
-            cloudwatch = Cloudwatch("CloudWatch Logs")
-
-            ecr_master >> jenkins_master_task
-            ecr_agent >> [jenkins_agent_task_1, jenkins_agent_task_2]
-            [jenkins_master_task, jenkins_agent_task_1, jenkins_agent_task_2] >> cloudwatch
+                [jenkins_master_task, jenkins_agent_task_1, jenkins_agent_task_2] >> cloudwatch
